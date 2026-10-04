@@ -1,0 +1,2 @@
+import { PALETTES } from "../data/palettes";
+export function PalettePicker({ value, onChange }) { return <div className="palette-picker"><span className="control-label">Palette</span><div className="swatches">{Object.entries(PALETTES).map(([id,p])=><button key={id} aria-label={`Palette ${p.label}`} aria-pressed={value===id} className={value===id?"is-active":""} onClick={()=>onChange(id)} style={{"--one":p.colors[0],"--two":p.colors[1],"--three":p.colors[2]}}><span/></button>)}</div><strong>{PALETTES[value].label}</strong></div>; }
