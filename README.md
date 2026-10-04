@@ -8,6 +8,7 @@ PsyPaint est un atelier de peinture générative qui associe le geste, la matiè
 - quatre palettes avec texture de papier dynamique ;
 - paysage sonore Web Audio réactif à la position du geste ;
 - annulation, remise à zéro et export PNG ;
+- vue 3D à 360° avec un manche virtuel, accélération, inertie et virages amortis ;
 - mode immersif, contrôles clavier et interface responsive.
 
 ## Développement
