@@ -1,56 +1,61 @@
 import { useCallback, useEffect, useRef } from "react";
-import { PALETTES } from "../data/palettes";
 import { VirtualJoystick } from "./VirtualJoystick";
-import { renderPaintStroke } from "../utils/paintRenderer";
+import { createArchetypeFX } from "../fx/createArchetypeFX";
+import { RelationFX } from "../fx/RelationFX";
+import { clamp, nodeToWorld } from "../fx/fieldUtils";
+import { ARCHETYPES } from "../data/archetypes";
+import { WatercolorSkydome } from "../fx/WatercolorSkydome";
 
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-
-function project(point, width, height, view) {
-  const longitude=(point.x-.5)*Math.PI*1.7, latitude=(.5-point.y)*Math.PI*.8;
-  const radius=5;
-  let x=Math.sin(longitude)*Math.cos(latitude)*radius-view.px;
-  let y=Math.sin(latitude)*radius-view.py;
-  let z=-Math.cos(longitude)*Math.cos(latitude)*radius-view.pz;
-  const cy=Math.cos(view.yaw), sy=Math.sin(view.yaw); [x,z]=[x*cy-z*sy,x*sy+z*cy];
-  const cp=Math.cos(view.pitch), sp=Math.sin(view.pitch); [y,z]=[y*cp-z*sp,y*sp+z*cp];
-  const depth=-z;
-  if(depth<.08)return null;
-  const scale=(height*.5)/Math.tan(view.fov*.5)/depth;
-  return {x:width*.5+x*scale,y:height*.5-y*scale,scale:clamp(scale/height,.35,2.4)};
+function projectWorld(point, width, height, view) {
+  let x = point.x - view.px, y = point.y - view.py, z = point.z - view.pz;
+  const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw); [x, z] = [x * cy - z * sy, x * sy + z * cy];
+  const cp = Math.cos(view.pitch), sp = Math.sin(view.pitch); [y, z] = [y * cp - z * sp, y * sp + z * cp];
+  const depth = -z; if (depth < .08) return null;
+  const scale = (height * .5) / Math.tan(view.fov * .5) / depth;
+  return { x: width * .5 + x * scale, y: height * .5 - y * scale, scale: clamp(scale / height, .2, 3), depth };
 }
 
-function paintStroke(ctx, stroke, width, height, view, time) {
-  const projected=stroke.points.map(point=>{const result=project(point,width,height,view);return result&&{...result,p:point.p};}).filter(Boolean);
-  if(!projected.length)return;
-  const averageScale=projected.reduce((sum,point)=>sum+point.scale,0)/projected.length;
-  renderPaintStroke(ctx,{...stroke,size:(stroke.size||18)*averageScale},projected,time,view.energy||0);
-}
+export function Immersive360({ active, getGraph, getAudioData, canvasRef, onExit }) {
+  const localRef = useRef(null), navigation = useRef({ input: { x: 0, y: 0, magnitude: 0 }, velocity: 0, yawVelocity: 0 }), view = useRef({ yaw: 0, pitch: 0, fov: Math.PI / 2, x: 0, y: 0, pinch: 0, px: 0, py: 0, pz: 0 });
+  const setNavigationInput = useCallback(input => { navigation.current.input = input; }, []);
+  useEffect(() => { canvasRef.current = localRef.current; return () => { canvasRef.current = null; }; }, [canvasRef, active]);
+  useEffect(() => {
+    if (!active) return;
+    const canvas = localRef.current, ctx = canvas.getContext("2d"), graph = getGraph();
+    // Build every immersive object from a strict archetype payload, never from the 2D glyph.
+    const fields = graph.nodes.map(node => ({ node, center: nodeToWorld(node), fx: createArchetypeFX(node) }));
+    const fieldById = new Map(fields.map(field => [field.node.id, field]));
+    const centers = new Map(fields.map(field => [field.node.id, field.center])), skydome = new WatercolorSkydome(graph, centers);
+    const relations = graph.edges.map(edge => { const source = fieldById.get(edge.source), target = fieldById.get(edge.target); return source && target ? { source, target, fx: new RelationFX(edge, source.node, target.node, [ARCHETYPES[source.node.archetype].palette, ARCHETYPES[target.node.archetype].palette]) } : null; }).filter(Boolean);
+    let frame, lastTime = 0, enteredAt = performance.now(); const points = new Map();
+    const resize = () => { const density = Math.min(devicePixelRatio || 1, 2); canvas.width = Math.round(innerWidth * density); canvas.height = Math.round(innerHeight * density); canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`; ctx.setTransform(density, 0, 0, density, 0, 0); };
+    const render = milliseconds => {
+      const width = innerWidth, height = innerHeight, time = milliseconds / 1000, delta = Math.min((milliseconds - lastTime) / 1000, .04) || 0; lastTime = milliseconds;
+      const ship = navigation.current, input = ship.input, camera = view.current, throttle = -input.y;
+      ship.velocity += throttle * 2.1 * delta; ship.velocity *= Math.exp(-(Math.abs(throttle) < .01 ? 1.15 : .22) * delta); ship.velocity = clamp(ship.velocity, -.72, 2.25);
+      const targetYawVelocity = -input.x * .78, turnBlend = 1 - Math.exp(-3.2 * delta); ship.yawVelocity += (targetYawVelocity - ship.yawVelocity) * turnBlend; camera.yaw = clamp(camera.yaw + ship.yawVelocity * delta, -Math.PI * .48, Math.PI * .48);
+      const forwardX = -Math.sin(camera.yaw), forwardZ = -Math.cos(camera.yaw), distance = Math.hypot(camera.px, camera.pz), outward = distance ? (camera.px * forwardX + camera.pz * forwardZ) / distance : 0;
+      if (distance > 3.15 && ship.velocity * outward > 0) ship.velocity *= Math.exp(-4.5 * delta);
+      camera.px += forwardX * ship.velocity * delta; camera.pz += forwardZ * ship.velocity * delta;
+      const safeDistance = Math.hypot(camera.px, camera.pz); if (safeDistance > 3.7) { camera.px = camera.px / safeDistance * 3.7; camera.pz = camera.pz / safeDistance * 3.7; ship.velocity *= .75; }
 
-export function Immersive360({ active, palette, getStrokes, getEnergy, canvasRef, onExit }) {
-  const localRef=useRef(null);
-  const navigation=useRef({input:{x:0,y:0,magnitude:0},velocity:0,yawVelocity:0,pitchVelocity:0});
-  const view=useRef({yaw:0,pitch:0,fov:Math.PI/2,drag:false,x:0,y:0,pinch:0,px:0,py:0,pz:0});
-  const setNavigationInput=useCallback(input=>{navigation.current.input=input;},[]);
-  useEffect(()=>{canvasRef.current=localRef.current;return()=>{canvasRef.current=null;};},[canvasRef,active]);
-  useEffect(()=>{
-    if(!active)return;
-    const canvas=localRef.current,ctx=canvas.getContext("2d");let frame,lastTime=0;const points=new Map();
-    const resize=()=>{const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(innerWidth*d);canvas.height=Math.round(innerHeight*d);canvas.style.width=`${innerWidth}px`;canvas.style.height=`${innerHeight}px`;ctx.setTransform(d,0,0,d,0,0);};
-    const render=ms=>{const w=innerWidth,h=innerHeight,pal=PALETTES[palette],t=ms/1000,dt=Math.min((ms-lastTime)/1000,.04)||0;lastTime=ms;
-      const ship=navigation.current,input=ship.input,v=view.current,throttle=-input.y;
-      ship.velocity+=throttle*2.1*dt;ship.velocity*=Math.exp(-(Math.abs(throttle)<.01?1.15:.22)*dt);ship.velocity=clamp(ship.velocity,-.72,2.25);
-      const targetYawVelocity=-input.x*.78,turnBlend=1-Math.exp(-3.2*dt);ship.yawVelocity+=(targetYawVelocity-ship.yawVelocity)*turnBlend;v.yaw+=ship.yawVelocity*dt;
-      const forwardX=-Math.sin(v.yaw),forwardZ=-Math.cos(v.yaw),distance=Math.hypot(v.px,v.pz),outward=distance?(v.px*forwardX+v.pz*forwardZ)/distance:0;
-      if(distance>3.15&&ship.velocity*outward>0)ship.velocity*=Math.exp(-4.5*dt);
-      v.px+=forwardX*ship.velocity*dt;v.pz+=forwardZ*ship.velocity*dt;
-      const safeDistance=Math.hypot(v.px,v.pz);if(safeDistance>3.7){v.px=v.px/safeDistance*3.7;v.pz=v.pz/safeDistance*3.7;ship.velocity*=.75;}
-      v.energy=getStrokes().some(stroke=>stroke.audioReactive)?getEnergy():0;const background=ctx.createRadialGradient(w*(.35+Math.sin(t*.05)*.08),h*.35,0,w*.5,h*.5,Math.max(w,h));background.addColorStop(0,pal.paper[0]);background.addColorStop(.48,pal.paper[1]);background.addColorStop(1,pal.ink);ctx.globalAlpha=1;ctx.fillStyle=background;ctx.fillRect(0,0,w,h);getStrokes().forEach(stroke=>paintStroke(ctx,stroke,w,h,v,t));ctx.globalCompositeOperation="source-over";ctx.globalAlpha=.08;for(let i=0;i<90;i++){const x=(Math.sin(i*91.7)*.5+.5)*w,y=(Math.sin(i*37.3)*.5+.5)*h;ctx.fillStyle=i%3?pal.ink:"#fff";ctx.fillRect(x,y,1,1);}frame=requestAnimationFrame(render);};
-    const down=e=>{canvas.setPointerCapture(e.pointerId);points.set(e.pointerId,{x:e.clientX,y:e.clientY});view.current.drag=true;view.current.x=e.clientX;view.current.y=e.clientY;if(points.size===2){const[a,b]=[...points.values()];view.current.pinch=Math.hypot(a.x-b.x,a.y-b.y);}};
-    const move=e=>{if(!points.has(e.pointerId))return;points.set(e.pointerId,{x:e.clientX,y:e.clientY});if(points.size===2){const[a,b]=[...points.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);view.current.fov=clamp(view.current.fov-(distance-view.current.pinch)*.003,.7,2.25);view.current.pinch=distance;return;}view.current.yaw-=(e.clientX-view.current.x)*.004;view.current.pitch=clamp(view.current.pitch+(e.clientY-view.current.y)*.0035,-1.15,1.15);view.current.x=e.clientX;view.current.y=e.clientY;};
-    const up=e=>{points.delete(e.pointerId);view.current.drag=points.size>0;},wheel=e=>{view.current.fov=clamp(view.current.fov+e.deltaY*.001,.7,2.25);};
-    resize();addEventListener("resize",resize);canvas.addEventListener("pointerdown",down);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",up);canvas.addEventListener("pointercancel",up);canvas.addEventListener("wheel",wheel,{passive:true});frame=requestAnimationFrame(render);
-    return()=>{cancelAnimationFrame(frame);removeEventListener("resize",resize);canvas.removeEventListener("pointerdown",down);canvas.removeEventListener("pointermove",move);canvas.removeEventListener("pointerup",up);canvas.removeEventListener("pointercancel",up);canvas.removeEventListener("wheel",wheel);};
-  },[active,palette,getStrokes,getEnergy]);
-  if(!active)return null;
-  return <div className="immersive-360"><canvas ref={localRef} onDoubleClick={onExit} aria-label="Vue 3D à 360 degrés de votre peinture"/><VirtualJoystick onInput={setNavigationInput}/><p>Propulsez et virez avec le manche · Glissez pour regarder</p></div>;
+      const audio = getAudioData(), reveal = clamp((milliseconds - enteredAt) / 1100, 0, 1), background = ctx.createRadialGradient(width * (.42 + Math.sin(time * .04) * .08), height * .42, 0, width * .5, height * .5, Math.max(width, height));
+      background.addColorStop(0, `rgba(${20 + audio.low * 18},${31 + audio.mid * 20},45,1)`); background.addColorStop(.52, "#101721"); background.addColorStop(1, "#05070d"); ctx.globalAlpha = 1; ctx.fillStyle = background; ctx.fillRect(0, 0, width, height);
+      ctx.save(); ctx.globalAlpha = reveal * reveal;
+      const project = point => projectWorld(point, width, height, camera);
+      skydome.update(delta, audio); skydome.draw(ctx, project, width, height);
+      fields.forEach(field => { field.fx.update(delta, audio); field.fx.draw(ctx, project, field.center); });
+      relations.forEach(relation => { relation.fx.update(delta, audio); relation.fx.draw(ctx, project, relation.source.center, relation.target.center); });
+      ctx.restore();
+      if (reveal < 1) { ctx.save(); ctx.globalCompositeOperation = "screen"; ctx.globalAlpha = (1 - reveal) * .32; ctx.strokeStyle = "#c8fff0"; ctx.lineWidth = Math.max(2, 18 * (1 - reveal)); ctx.beginPath(); ctx.arc(width / 2, height / 2, reveal * Math.hypot(width, height) * .7, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+      frame = requestAnimationFrame(render);
+    };
+    const down = event => { canvas.setPointerCapture(event.pointerId); points.set(event.pointerId, { x: event.clientX, y: event.clientY }); view.current.x = event.clientX; view.current.y = event.clientY; if (points.size === 2) { const [a, b] = [...points.values()]; view.current.pinch = Math.hypot(a.x - b.x, a.y - b.y); } };
+    const move = event => { if (!points.has(event.pointerId)) return; points.set(event.pointerId, { x: event.clientX, y: event.clientY }); if (points.size === 2) { const [a, b] = [...points.values()], distance = Math.hypot(a.x - b.x, a.y - b.y); view.current.fov = clamp(view.current.fov - (distance - view.current.pinch) * .003, .7, 2.25); view.current.pinch = distance; return; } view.current.yaw = clamp(view.current.yaw - (event.clientX - view.current.x) * .004, -Math.PI * .48, Math.PI * .48); view.current.pitch = clamp(view.current.pitch + (event.clientY - view.current.y) * .0035, -1.05, 1.05); view.current.x = event.clientX; view.current.y = event.clientY; };
+    const up = event => points.delete(event.pointerId), wheel = event => { view.current.fov = clamp(view.current.fov + event.deltaY * .001, .7, 2.25); };
+    resize(); addEventListener("resize", resize); canvas.addEventListener("pointerdown", down); canvas.addEventListener("pointermove", move); canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up); canvas.addEventListener("wheel", wheel, { passive: true }); frame = requestAnimationFrame(render);
+    return () => { cancelAnimationFrame(frame); skydome.dispose(); fields.forEach(field => field.fx.dispose()); relations.forEach(relation => relation.fx.dispose()); removeEventListener("resize", resize); canvas.removeEventListener("pointerdown", down); canvas.removeEventListener("pointermove", move); canvas.removeEventListener("pointerup", up); canvas.removeEventListener("pointercancel", up); canvas.removeEventListener("wheel", wheel); };
+  }, [active, getGraph, getAudioData]);
+  if (!active) return null;
+  return <div className="immersive-360"><canvas ref={localRef} onDoubleClick={onExit} aria-label="Paysage aquarelle vivant à 180 degrés"/><VirtualJoystick onInput={setNavigationInput}/><p>Traversez le paysage · Glissez pour explorer le dôme</p></div>;
 }
