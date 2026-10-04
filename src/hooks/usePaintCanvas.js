@@ -25,5 +25,6 @@ export function usePaintCanvas({ brush, palette, paintNote, endNote, getEnergy }
   const stop=()=>{current.current=null;endNote();};
   const undo=useCallback(()=>{strokes.current.pop();setCount(strokes.current.length);},[]); const clear=useCallback(()=>{strokes.current=[];setCount(0);},[]);
   const download=useCallback(()=>{const a=document.createElement("a");a.download=`psypaint-${Date.now()}.png`;a.href=canvasRef.current.toDataURL("image/png");a.click();},[]);
-  return { canvasRef, canvasProps:{onPointerDown,onPointerMove,onPointerUp:stop,onPointerCancel:stop,onPointerLeave:stop}, undo, clear, download, count };
+  const getStrokes=useCallback(()=>strokes.current,[]);
+  return { canvasRef, canvasProps:{onPointerDown,onPointerMove,onPointerUp:stop,onPointerCancel:stop,onPointerLeave:stop}, undo, clear, download, getStrokes, count };
 }
