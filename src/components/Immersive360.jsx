@@ -26,7 +26,7 @@ function paintStroke(ctx, stroke, width, height, view, time) {
   renderPaintStroke(ctx,{...stroke,size:(stroke.size||18)*averageScale},projected,time,view.energy||0);
 }
 
-export function Immersive360({ active, palette, getStrokes, getEnergy, canvasRef, onExit }) {
+export function Immersive360({ active, palette, getStrokes, getGraph, getEnergy, canvasRef, onExit }) {
   const localRef=useRef(null);
   const navigation=useRef({input:{x:0,y:0,magnitude:0},velocity:0,yawVelocity:0,pitchVelocity:0});
   const view=useRef({yaw:0,pitch:0,fov:Math.PI/2,drag:false,x:0,y:0,pinch:0,px:0,py:0,pz:0});
@@ -34,6 +34,7 @@ export function Immersive360({ active, palette, getStrokes, getEnergy, canvasRef
   useEffect(()=>{canvasRef.current=localRef.current;return()=>{canvasRef.current=null;};},[canvasRef,active]);
   useEffect(()=>{
     if(!active)return;
+    getGraph?.(); // Keeps the structured nodes/edges payload available beside the legacy projected strokes.
     const canvas=localRef.current,ctx=canvas.getContext("2d");let frame,lastTime=0;const points=new Map();
     const resize=()=>{const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(innerWidth*d);canvas.height=Math.round(innerHeight*d);canvas.style.width=`${innerWidth}px`;canvas.style.height=`${innerHeight}px`;ctx.setTransform(d,0,0,d,0,0);};
     const render=ms=>{const w=innerWidth,h=innerHeight,pal=PALETTES[palette],t=ms/1000,dt=Math.min((ms-lastTime)/1000,.04)||0;lastTime=ms;
@@ -50,7 +51,7 @@ export function Immersive360({ active, palette, getStrokes, getEnergy, canvasRef
     const up=e=>{points.delete(e.pointerId);view.current.drag=points.size>0;},wheel=e=>{view.current.fov=clamp(view.current.fov+e.deltaY*.001,.7,2.25);};
     resize();addEventListener("resize",resize);canvas.addEventListener("pointerdown",down);canvas.addEventListener("pointermove",move);canvas.addEventListener("pointerup",up);canvas.addEventListener("pointercancel",up);canvas.addEventListener("wheel",wheel,{passive:true});frame=requestAnimationFrame(render);
     return()=>{cancelAnimationFrame(frame);removeEventListener("resize",resize);canvas.removeEventListener("pointerdown",down);canvas.removeEventListener("pointermove",move);canvas.removeEventListener("pointerup",up);canvas.removeEventListener("pointercancel",up);canvas.removeEventListener("wheel",wheel);};
-  },[active,palette,getStrokes,getEnergy]);
+  },[active,palette,getStrokes,getGraph,getEnergy]);
   if(!active)return null;
   return <div className="immersive-360"><canvas ref={localRef} onDoubleClick={onExit} aria-label="Vue 3D à 360 degrés de votre peinture"/><VirtualJoystick onInput={setNavigationInput}/><p>Propulsez et virez avec le manche · Glissez pour regarder</p></div>;
 }
