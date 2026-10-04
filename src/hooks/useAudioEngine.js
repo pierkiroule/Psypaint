@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export function useAudioEngine(onMessage) {
   const engine = useRef(null);
   const objectUrl = useRef("");
+  const analysis = useRef({ low: 0, mid: 0, high: 0, energy: 0, beat: 0, previousEnergy: 0, updatedAt: performance.now() });
   const [playing, setPlaying] = useState(false);
   const [fileName, setFileName] = useState("");
 
@@ -52,14 +53,21 @@ export function useAudioEngine(onMessage) {
     }
   }, [onMessage]);
 
-  const getEnergy = useCallback(() => {
+  const getAudioData = useCallback(() => {
     const current = engine.current;
-    if (!current || current.audio.paused) return 0;
-    current.analyser.getByteFrequencyData(current.data);
-    let sum = 0;
-    for (let index = 0; index < current.data.length; index++) sum += current.data[index];
-    return sum / current.data.length / 255;
+    const smooth = analysis.current, now = performance.now(), delta = Math.min((now - smooth.updatedAt) / 1000, .1); smooth.updatedAt = now;
+    let low = 0, mid = 0, high = 0, energy = 0;
+    if (current && !current.audio.paused) {
+      current.analyser.getByteFrequencyData(current.data); const length = current.data.length;
+      for (let index = 0; index < length; index++) { const value = current.data[index] / 255; energy += value; if (index < length * .16) low += value / (length * .16); else if (index < length * .55) mid += value / (length * .39); else high += value / (length * .45); }
+      energy /= length;
+    }
+    const damping = 1 - Math.exp(-delta * 7); smooth.low += (low - smooth.low) * damping; smooth.mid += (mid - smooth.mid) * damping; smooth.high += (high - smooth.high) * damping; smooth.energy += (energy - smooth.energy) * damping;
+    const transient = Math.max(0, energy - smooth.previousEnergy - .035); smooth.beat = Math.max(transient * 5, smooth.beat * Math.exp(-delta * 8)); smooth.previousEnergy = energy;
+    return { low: smooth.low, mid: smooth.mid, high: smooth.high, energy: smooth.energy, beat: smooth.beat };
   }, []);
+
+  const getEnergy = useCallback(() => getAudioData().energy, [getAudioData]);
 
   useEffect(() => () => {
     engine.current?.audio.pause();
@@ -67,5 +75,5 @@ export function useAudioEngine(onMessage) {
     if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
   }, []);
 
-  return { playing, fileName, loadFile, toggle, getEnergy };
+  return { playing, fileName, loadFile, toggle, getEnergy, getAudioData };
 }
