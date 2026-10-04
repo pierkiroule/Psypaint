@@ -6,6 +6,6 @@ export const PALETTES = {
 };
 export const BRUSHES = [
   { id: "wash", label: "Lavis", glyph: "water" }, { id: "ink", label: "Encre", glyph: "ink" },
-  { id: "pencil", label: "Crayon", glyph: "pencil" }, { id: "bloom", label: "Floraison", glyph: "bloom" },
-  { id: "leaf", label: "Feuillage", glyph: "leaf" },
+  { id: "pencil", label: "Crayon graphite", glyph: "pencil" }, { id: "bloom", label: "Tampon fleur", glyph: "bloom" },
+  { id: "leaf", label: "Tampon feuille", glyph: "leaf" },
 ];

@@ -4,11 +4,12 @@ PsyPaint est un atelier de peinture générative qui associe le geste, la matiè
 
 ## Fonctionnalités
 
-- cinq outils de dessin organiques : lavis, encre, crayon, floraison et feuillage ;
+- cinq outils de dessin texturés : aquarelle, encre sensible à la pression, crayon graphite et deux tampons ;
 - quatre palettes avec texture de papier dynamique ;
-- paysage sonore Web Audio réactif à la position du geste ;
+- choix libre de la couleur, de l’épaisseur et de l’opacité ;
+- import d’un morceau audio pour animer les brosses en temps réel, sans générateur sonore ;
 - annulation, remise à zéro et export PNG ;
-- vue 3D à 360° avec un manche virtuel, accélération, inertie et virages amortis ;
+- rendu cohérent des outils dans la toile 2D et la vue 3D à 360°, avec un manche virtuel, accélération, inertie et virages amortis ;
 - mode immersif, contrôles clavier et interface responsive.
 
 ## Développement
