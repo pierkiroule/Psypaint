@@ -1,0 +1,3 @@
+import React from "react";import{createRoot}from"react-dom/client";import"./style.css";
+function App(){return <main><div className="orb"/><section><p className="eyebrow">PSYPAINT</p><h1>Peindre ce qui<br/>ne se dit pas.</h1><p className="intro">Un espace graphique immersif pour tracer, transformer et faire résonner des formes.</p><button onClick={()=>document.body.classList.toggle("awake")}>Commencer</button></section></main>}
+createRoot(document.getElementById("root")).render(<App/>);
