@@ -1,4 +1,4 @@
-// Focused Three.js-compatible surface used by EchoPaint's single shader scene.
+// Focused Three.js-compatible surface used by PsyKaleido's single shader scene.
 // Keeping this renderer local avoids shipping the much larger general-purpose engine on mobile.
 export class Vector2 { constructor(x = 0, y = 0) { this.x = x; this.y = y; } set(x, y) { this.x = x; this.y = y; return this; } }
 export class Scene { constructor() { this.children = []; } add(object) { this.children.push(object); } }
