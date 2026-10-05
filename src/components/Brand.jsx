@@ -1,1 +1,0 @@
-export function Brand() { return <header className="brand"><div className="brand-mark" aria-hidden="true"><span/><span/><span/></div><div><strong>PSYPAINT</strong><small>Atelier sensoriel</small></div></header>; }
