@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { archetypes, symbolOrder } from "../data/archetypes.js";
-import { mixArchetypes } from "./archetypeMixer.js";
+import { mixArchetypes, mixTrait } from "./archetypeMixer.js";
 import { advanceAudioMotion, initialAudioMotion } from "./audioMotion.js";
 import { mapOrientationToView } from "./gyroView.js";
+import { flattenPalette } from "../hooks/useThreeVisualizer.js";
 
 test("the projective palette exposes twelve configurable symbols", () => {
   assert.equal(symbolOrder.length, 12);
@@ -39,6 +40,22 @@ test("the mixer creates one distinct hybrid state without averaging pigments", (
   assert.ok(waveVortex.orbitality > waveGrowth.orbitality);
   assert.notDeepEqual(all.palette, waveGrowth.palette);
   assert.deepEqual(waveGrowth.palette[0], archetypes.wave.palette[0].match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255));
+});
+
+test("dominant genome traits survive a three-symbol blend", () => {
+  const mixed = mixArchetypes(["wave", "growth", "vortex"], .42);
+  assert.ok(mixed.fluidity > .75);
+  assert.ok(mixed.branching > .75);
+  assert.ok(mixed.orbitality > .75);
+  assert.equal(mixed.seed, .42);
+  assert.ok(mixTrait([1, .1, .1]) > .75);
+});
+
+test("the GLSL palette is packed as a vec3 uniform buffer", () => {
+  const palette = flattenPalette([[1, 0, 0], [0, 1, 0], [0, 0, 1], [.5, .5, .5]]);
+  assert.ok(palette instanceof Float32Array);
+  assert.equal(palette.length, 12);
+  assert.deepEqual([...palette.slice(0, 6)], [1, 0, 0, 0, 1, 0]);
 });
 
 test("audio motion turns abrupt FFT changes into continuous evolution", () => {
