@@ -20,7 +20,17 @@ export class WebGLRenderer {
   }
   render(scene) {
     const material = scene.children[0]?.material, gl = this.gl; if (!gl || !material) return; if (!this.program) this.compile(material); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); gl.useProgram(this.program);
-    for (const [name, entry] of Object.entries(material.uniforms)) { const location = gl.getUniformLocation(this.program, name), value = entry.value; if (value instanceof Vector2) gl.uniform2f(location, value.x, value.y); else if (value instanceof Float32Array) { if (entry.type === "1fv") gl.uniform1fv(location, value); else if (entry.type === "2fv") gl.uniform2fv(location, value); else gl.uniform4fv(location, value); } else gl.uniform1f(location, value); }
+    for (const [name, entry] of Object.entries(material.uniforms)) {
+      const location = gl.getUniformLocation(this.program, name), value = entry.value;
+      if (location === null) continue;
+      if (value instanceof Vector2) gl.uniform2f(location, value.x, value.y);
+      else if (value instanceof Float32Array) {
+        if (entry.type === "1fv") gl.uniform1fv(location, value);
+        else if (entry.type === "2fv") gl.uniform2fv(location, value);
+        else if (entry.type === "3fv") gl.uniform3fv(location, value);
+        else gl.uniform4fv(location, value);
+      } else gl.uniform1f(location, value);
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
   dispose() { if (this.program) this.gl.deleteProgram(this.program); }

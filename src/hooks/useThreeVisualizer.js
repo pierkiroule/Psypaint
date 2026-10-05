@@ -1,69 +1,57 @@
 import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "../vendor/three.module.js";
 import { advanceAudioMotion, initialAudioMotion } from "../utils/audioMotion.js";
+import { GENOME_KEYS } from "../data/archetypes.js";
 
-const MAX_TOUCHES = 10;
 const VERTEX = `attribute vec2 position;void main(){gl_Position=vec4(position,0.,1.);}`;
 const FRAGMENT = `precision highp float;
-uniform vec2 uResolution,uPointer;uniform float uTime,uFlow,uShimmer,uDiffusion,uPropagation,uFluidity,uBranching,uOrbitality,uSymmetry,uTurbulence,uParticles,uSignature,uTouch,uHold,uTouchCount;uniform vec3 uPalette[4];uniform vec4 uTouches[10];
+uniform vec2 uResolution,uTouch,uTouchVelocity;uniform float uTime,uEmergence,uSeed,uTouchStrength,uHold,uFlow,uShimmer,uDiffusion,uPropagation,uLow,uMid,uHigh,uEnergy;
+uniform float uFluidity,uBranching,uOrbitality,uTurbulence,uDiffusionGenome,uMembrane,uSparkle,uVerticality,uSymmetry,uSoftness,uDensity,uLuminosity,uDepth;uniform vec3 uPalette[4];
 #define PI 3.14159265359
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1)),f.x),f.y);}
-float fbm(vec2 p){float v=0.;for(int i=0;i<4;i++){v+=noise(p)*.5;p=mat2(1.62,-1.18,1.18,1.62)*p;};return v;}
-vec3 palette(float x){x=clamp(x,0.,.999);float k=x*3.;if(k<1.)return mix(uPalette[0],uPalette[1],smoothstep(0.,1.,k));if(k<2.)return mix(uPalette[1],uPalette[2],smoothstep(0.,1.,k-1.));return mix(uPalette[2],uPalette[3],smoothstep(0.,1.,k-2.));}
+float fbm(vec2 p){float v=0.,a=.52;for(int i=0;i<5;i++){v+=a*noise(p);p=mat2(1.58,-1.12,1.12,1.58)*p+2.17;a*=.48;}return v;}
+vec2 organicField(vec2 p,float macro,float meso){float n=fbm(p*(1.3+uTurbulence)+vec2(macro,-macro*.71));float a=6.283*(n-.5)+atan(p.y,p.x)*uOrbitality;vec2 flow=vec2(cos(a),sin(a));flow+=vec2(-p.y,p.x)*uOrbitality/(.3+dot(p,p));flow.y+=uVerticality*.18;return flow*(.025+.055*uFluidity)+vec2(n-.5)*uTurbulence*.05+meso*uTouchVelocity*.08;}
+vec3 palette(float x){x=clamp(x,0.,.999)*3.;if(x<1.)return mix(uPalette[0],uPalette[1],smoothstep(0.,1.,x));if(x<2.)return mix(uPalette[1],uPalette[2],smoothstep(0.,1.,x-1.));return mix(uPalette[2],uPalette[3],smoothstep(0.,1.,x-2.));}
 void main(){
- vec2 uv=(gl_FragCoord.xy-.5*uResolution)/uResolution.y;float t=uTime*.075;vec2 centre=vec2(sin(t*.71+uSignature)*.055,cos(t*.53)*.04);vec2 p=uv-centre;
- float touchWarp=0.;for(int i=0;i<10;i++){if(float(i)>=uTouchCount)break;vec4 m=uTouches[i];vec2 tp=(m.xy-.5)*vec2(uResolution.x/uResolution.y,1.);vec2 d=p-tp;float age=uTime-m.z;float influence=exp(-dot(d,d)*18.)*exp(-age*.48)*m.w;float ring=sin(length(d)*36.-age*3.2)*exp(-length(d)*5.)*exp(-age*.65);p+=normalize(d+vec2(.001))*ring*.016*m.w;p+=vec2(-d.y,d.x)*influence*.09*uOrbitality;touchWarp+=influence;}
- vec2 livePointer=(uPointer-.5)*vec2(uResolution.x/uResolution.y,1.);vec2 pd=p-livePointer;float held=exp(-dot(pd,pd)*13.)*uHold;p-=pd*held*.08;
- float r=length(p),a=atan(p.y,p.x);float folds=mix(2.,7.,uSymmetry);float imperfect=sin(a*3.+t*2.1)*(.16+.17*uTurbulence)+fbm(p*2.3+t)*.32;
- float kaleido=abs(mod(a+PI/folds,2.*PI/folds)-PI/folds);vec2 k=vec2(cos(kaleido),sin(kaleido))*r;k+=vec2(imperfect*.045,-imperfect*.025);
- float spiral=a*uOrbitality*1.15-r*(2.+uOrbitality*5.)+t*(1.+uOrbitality*2.)+uFlow*.16;
- vec2 flow=k*(2.5+uFluidity*1.7);flow+=vec2(sin(spiral),cos(spiral))*(.16*uOrbitality+.035);flow+=vec2(fbm(flow+t),fbm(flow-t+.7))*(.25*uTurbulence);
- float matter=fbm(flow+vec2(t,-t*.7));float membrane=sin((matter+r*.8)*15.-t*3.+sin(spiral)*1.8)*.5+.5;
- float branches=abs(sin(kaleido*(3.+uBranching*7.)+fbm(k*5.-t)*2.4-r*11.));branches=pow(1.-branches,2.2)*uBranching;
- float breathing=.82+.12*sin(t*3.+uFlow*.1)+uTouch*.08;float body=smoothstep(.78,.05,r/breathing+matter*.22-.12);
- float grain=pow(hash(floor((k+t*.08)*uResolution.y*.18)),18.)*uParticles*(.25+uShimmer*.38);
- float filaments=smoothstep(.66,.9,membrane)*(.28+.56*uFluidity)+branches*.58;float core=exp(-r*r*(5.+2.*sin(t*2.)))*(.1+.16*uOrbitality);
- float value=body*(.10+filaments)+grain*body+core+touchWarp*.08+held*.1;float pigment=fract(matter*.72+r*.9+spiral*.055+uSignature*.13);
- vec3 color=palette(pigment)*value;color+=uPalette[3]*(grain*.25+uPropagation*.025*body);color*=1.+uDiffusion*.06;
- float vignette=smoothstep(1.05,.18,length(uv));color=1.-exp(-color*1.28);color=pow(color,vec3(.86));gl_FragColor=vec4(color*vignette,1.);
+ vec2 uv=(gl_FragCoord.xy-.5*uResolution)/uResolution.y;float macro=uTime*.018+uSeed*4.7,breath=.55*sin(uTime*.21+uSeed)+.3*sin(uTime*.137+1.7)+.15*sin(uTime*.071+4.);breath*=.7+.3*noise(vec2(uTime*.025,uSeed));
+ vec2 p=uv+vec2(sin(macro*.7),cos(macro*.53))*.045;vec2 tp=(uTouch-.5)*vec2(uResolution.x/uResolution.y,1.);vec2 td=p-tp;float local=exp(-dot(td,td)*(8.+6.*uSoftness))*uTouchStrength;
+ p-=uTouchVelocity*local*.12;p+=normalize(td+vec2(.001))*sin(length(td)*24.-uTime*2.2)*uPropagation*.018;p+=vec2(-td.y,td.x)*local*uOrbitality*.055;
+ float r=length(p),ang=atan(p.y,p.x),folds=mix(1.5,6.5,uSymmetry);float mirrored=abs(mod(ang+PI/folds,2.*PI/folds)-PI/folds);float imperfection=(fbm(p*2.+macro)-.5)*(.5-.3*uSymmetry+uTurbulence*.4)+local*.45;
+ vec2 q=vec2(cos(mirrored+imperfection),sin(mirrored+imperfection))*r;q+=organicField(q,macro,uMid)*(.8+uFlow*.025);q+=organicField(q*1.7+1.3,-macro*.63,uMid)*.55;
+ float warp=fbm(q*(2.2+uDensity)+vec2(macro,-macro*.8));vec2 warped=q+organicField(q+warp,macro*.7,uMid)*(2.+uFluidity*2.5);float fine=fbm(warped*4.2-vec2(macro*.9,macro*.3));
+ float radius=.31+.12*uDensity+.035*breath+.025*uLow;float body=smoothstep(radius+.24*uSoftness,r+warp*.16-.09-local*.035-uHold*.025);
+ float membrane=1.-smoothstep(.025+.07*uSoftness, .11+.12*uSoftness,abs(r+warp*.13-radius));membrane*=.3+.7*uMembrane;
+ float fiberPhase=sin((mirrored*(3.+7.*uBranching)-r*(9.+7.*uOrbitality)+warp*4.)+macro*3.);float fibers=pow(max(0.,1.-abs(fiberPhase)),3.)*uBranching*body;
+ float cell=smoothstep(.7,.98,sin((warp+fine*.45)*18.+uTime*.11)*.5+.5)*uMembrane*body;
+ float dust=pow(hash(floor((warped+macro*.012)*uResolution.y*.16)),22.)*(.1+.9*uSparkle)*body*(.4+.6*fine);
+ float emergence=smoothstep(0.,.3,uEmergence);float value=(body*(.08+.5*warp)+membrane*.48+fibers*.48*emergence+cell*.2+dust*(.45+uShimmer*.3))*emergence;value*=.7+.28*uLuminosity+.07*uEnergy;
+ float pigment=fract(warp*.58+fine*.25+r*.6+uSeed*.31+uDepth*q.y*.12);vec3 col=palette(pigment)*value;col+=uPalette[3]*(dust*.22+local*.055+uHold*local*.05);col*=1.+uDiffusion*.045;
+ float depthFog=mix(.62,1.,smoothstep(-.5,.45,q.y+fine*.15)*(.4+.6*uDepth));float vignette=smoothstep(1.02,.17,length(uv));col=1.-exp(-col*1.22);gl_FragColor=vec4(pow(col*depthFog*vignette,vec3(.9)),1.);
 }`;
 
+const cap = (value, min, max) => Math.max(min, Math.min(max, value));
+export const flattenPalette = palette => new Float32Array(palette.flat());
 export function useThreeVisualizer(getAudioData) {
-  const canvasRef = useRef(null), runtime = useRef(null), composition = useRef(null), touches = useRef([]), pointer = useRef({ id: null, x: .5, y: .5, downAt: 0 }), audioMotion = useRef(initialAudioMotion());
-  const setComposition = useCallback(value => { composition.current = value; }, []);
-  const point = event => { const rect = canvasRef.current.getBoundingClientRect(); return [(event.clientX - rect.left) / rect.width, 1 - (event.clientY - rect.top) / rect.height]; };
-  const addTouch = useCallback((event, intensity = 1) => { const [x, y] = point(event); touches.current.push({ x, y, born: performance.now() / 1000, intensity }); if (touches.current.length > MAX_TOUCHES) touches.current.shift(); }, []);
-  const down = useCallback(event => { event.preventDefault(); canvasRef.current.setPointerCapture(event.pointerId); const [x, y] = point(event); pointer.current = { id: event.pointerId, x, y, downAt: performance.now() }; addTouch(event, .7); navigator.vibrate?.(8); }, [addTouch]);
-  const move = useCallback(event => { if (pointer.current.id !== event.pointerId) return; event.preventDefault(); const [x, y] = point(event); const distance = Math.hypot(x - pointer.current.x, y - pointer.current.y); pointer.current.x = x; pointer.current.y = y; if (distance > .012) addTouch(event, Math.min(1.35, .6 + distance * 8)); }, [addTouch]);
-  const up = useCallback(event => { if (pointer.current.id === event.pointerId) { addTouch(event, .5); pointer.current.id = null; } }, [addTouch]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current, renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
-    if (!renderer.gl) return;
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
-    const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera();
-    const uniforms = {
-      uResolution: { value: new THREE.Vector2() }, uPointer: { value: new THREE.Vector2(.5, .5) }, uTime: { value: 0 }, uFlow: { value: 0 }, uShimmer: { value: 0 }, uDiffusion: { value: 0 }, uPropagation: { value: 0 },
-      uFluidity: { value: .6 }, uBranching: { value: .4 }, uOrbitality: { value: .5 }, uSymmetry: { value: .6 }, uTurbulence: { value: .3 }, uParticles: { value: .5 }, uSignature: { value: 1 }, uTouch: { value: 0 }, uHold: { value: 0 }, uTouchCount: { value: 0 },
-      uPalette: { value: [[.05,.12,.16],[.12,.35,.38],[.4,.58,.5],[.8,.75,.6]], type: "3fv" }, uTouches: { value: new Float32Array(MAX_TOUCHES * 4), type: "4fv" }
-    };
-    const material = new THREE.ShaderMaterial({ uniforms, vertexShader: VERTEX, fragmentShader: FRAGMENT }), geometry = new THREE.PlaneGeometry(2, 2); scene.add(new THREE.Mesh(geometry, material)); runtime.current = { uniforms };
-    const resize = () => { const rect = canvas.getBoundingClientRect(); renderer.setSize(rect.width, rect.height); uniforms.uResolution.value.set(canvas.width, canvas.height); };
-    resize(); const observer = new ResizeObserver(resize); observer.observe(canvas); let frame;
-    const render = now => {
-      const dt = Math.min(.05, (now - (render.last || now)) / 1000); render.last = now;
-      const c = composition.current, rawAudio = getAudioData(), response = c?.audioResponse || { low: .5, mid: .5, high: .3 };
-      const audio = { ...rawAudio, low: rawAudio.low * response.low, mid: rawAudio.mid * response.mid, high: rawAudio.high * response.high };
-      const motion = audioMotion.current = advanceAudioMotion(audioMotion.current, audio, dt);
-      uniforms.uTime.value = now / 1000; uniforms.uFlow.value = motion.flow; uniforms.uShimmer.value = motion.shimmer; uniforms.uDiffusion.value = motion.diffusion; uniforms.uPropagation.value = motion.propagation;
-      if (c) { uniforms.uFluidity.value += (c.fluidity - uniforms.uFluidity.value) * .025; uniforms.uBranching.value += (c.branching - uniforms.uBranching.value) * .025; uniforms.uOrbitality.value += (c.orbitality - uniforms.uOrbitality.value) * .025; uniforms.uSymmetry.value += (c.symmetry - uniforms.uSymmetry.value) * .025; uniforms.uTurbulence.value += (c.turbulence - uniforms.uTurbulence.value) * .025; uniforms.uParticles.value += (c.particles - uniforms.uParticles.value) * .025; uniforms.uSignature.value = c.signature; uniforms.uPalette.value = c.palette; }
-      const p = pointer.current, held = p.id === null ? 0 : Math.min(1, (now - p.downAt) / 1300); uniforms.uPointer.value.set(p.x, p.y); uniforms.uHold.value += (held - uniforms.uHold.value) * .06;
-      const activeTouches = touches.current.filter(item => now / 1000 - item.born < 6); touches.current = activeTouches; uniforms.uTouchCount.value = activeTouches.length; uniforms.uTouch.value = Math.max(held, activeTouches.length ? .5 : 0);
-      activeTouches.forEach((item, index) => { const offset = index * 4; uniforms.uTouches.value[offset] = item.x; uniforms.uTouches.value[offset + 1] = item.y; uniforms.uTouches.value[offset + 2] = item.born; uniforms.uTouches.value[offset + 3] = item.intensity; });
-      renderer.render(scene, camera); frame = requestAnimationFrame(render);
-    };
-    frame = requestAnimationFrame(render); return () => { cancelAnimationFrame(frame); observer.disconnect(); geometry.dispose(); material.dispose(); renderer.dispose(); };
-  }, [getAudioData]);
-  return { canvasRef, canvasProps: { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up }, setComposition };
+  const canvasRef=useRef(null), composition=useRef(null), pointer=useRef({id:null,x:.5,y:.5,vx:0,vy:0,tx:.5,ty:.5,strength:0,downAt:0}), audioMotion=useRef(initialAudioMotion()), born=useRef(performance.now());
+  const setComposition=useCallback(value=>{composition.current=value;},[]);
+  const point=event=>{const rect=canvasRef.current.getBoundingClientRect();return[(event.clientX-rect.left)/rect.width,1-(event.clientY-rect.top)/rect.height];};
+  const down=useCallback(event=>{event.preventDefault();canvasRef.current.setPointerCapture(event.pointerId);const [x,y]=point(event);pointer.current={...pointer.current,id:event.pointerId,tx:x,ty:y,downAt:performance.now(),strength:.35};navigator.vibrate?.(8);},[]);
+  const move=useCallback(event=>{const p=pointer.current;if(p.id!==event.pointerId)return;event.preventDefault();const[x,y]=point(event);p.vx+=(x-p.tx)*.34;p.vy+=(y-p.ty)*.34;p.tx=x;p.ty=y;p.strength=cap(p.strength+.08,0,1);},[]);
+  const up=useCallback(event=>{const p=pointer.current;if(p.id!==event.pointerId)return;p.id=null;p.strength=Math.max(p.strength,.55);},[]);
+  const beginEmergence=useCallback(()=>{born.current=performance.now();},[]);
+  useEffect(()=>{const canvas=canvasRef.current,renderer=new THREE.WebGLRenderer({canvas,antialias:false,alpha:false,powerPreference:"high-performance"});if(!renderer.gl)return;
+    let pixelRatio=Math.min(devicePixelRatio||1,1.5),slowFrames=0;renderer.setPixelRatio(pixelRatio);const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera();
+    const uniforms={uResolution:{value:new THREE.Vector2()},uTouch:{value:new THREE.Vector2(.5,.5)},uTouchVelocity:{value:new THREE.Vector2()},uTime:{value:0},uEmergence:{value:0},uSeed:{value:.4},uTouchStrength:{value:0},uHold:{value:0},uFlow:{value:0},uShimmer:{value:0},uDiffusion:{value:0},uPropagation:{value:0},uLow:{value:0},uMid:{value:0},uHigh:{value:0},uEnergy:{value:0},uPalette:{value:flattenPalette([[.05,.12,.16],[.12,.35,.38],[.4,.58,.5],[.8,.75,.6]]),type:"3fv"}};
+    // Shader names mirror genome traits; diffusion needs a suffix to avoid the audio uniform.
+    GENOME_KEYS.forEach(key=>{const name=key==="diffusion"?"uDiffusionGenome":`u${key[0].toUpperCase()}${key.slice(1)}`;uniforms[name]??={value:.4};});
+    const material=new THREE.ShaderMaterial({uniforms,vertexShader:VERTEX,fragmentShader:FRAGMENT}),geometry=new THREE.PlaneGeometry(2,2);scene.add(new THREE.Mesh(geometry,material));
+    const resize=()=>{const rect=canvas.getBoundingClientRect();renderer.setSize(rect.width,rect.height);uniforms.uResolution.value.set(canvas.width,canvas.height);};resize();const observer=new ResizeObserver(resize);observer.observe(canvas);let frame,last=performance.now();
+    const render=now=>{const dt=Math.min(.05,(now-last)/1000);last=now;const c=composition.current,raw=getAudioData(),response=c?.audioResponse||{low:.5,mid:.5,high:.3};const audio={...raw,low:raw.low*response.low,mid:raw.mid*response.mid,high:raw.high*response.high};const motion=audioMotion.current=advanceAudioMotion(audioMotion.current,audio,dt);
+      uniforms.uLow.value=motion.low;uniforms.uMid.value=motion.mid;uniforms.uHigh.value=motion.high;uniforms.uEnergy.value=motion.energy;uniforms.uFlow.value=motion.flow;uniforms.uShimmer.value=motion.shimmer;uniforms.uDiffusion.value=motion.diffusion;uniforms.uPropagation.value=motion.propagation;uniforms.uTime.value=now/1000;uniforms.uEmergence.value=cap((now-born.current)/3200,0,1);
+      if(c){GENOME_KEYS.forEach(key=>{const name=key==="diffusion"?"uDiffusionGenome":`u${key[0].toUpperCase()}${key.slice(1)}`;uniforms[name].value+=(c[key]-uniforms[name].value)*(1-Math.exp(-dt*.5));});uniforms.uSeed.value+=(c.seed-uniforms.uSeed.value)*(1-Math.exp(-dt*.35));uniforms.uPalette.value.set(c.palette.flat());}
+      const p=pointer.current;p.vx+=(p.tx-p.x)*dt*8;p.vy+=(p.ty-p.y)*dt*8;p.vx*=Math.exp(-dt*5);p.vy*=Math.exp(-dt*5);p.x+=p.vx;p.y+=p.vy;p.strength*=Math.exp(-dt*(p.id===null?.72:.08));const held=p.id===null?0:cap((now-p.downAt)/1600,0,1);uniforms.uTouch.value.set(p.x,p.y);uniforms.uTouchVelocity.value.set(p.vx,p.vy);uniforms.uTouchStrength.value=p.strength;uniforms.uHold.value+=(held-uniforms.uHold.value)*(1-Math.exp(-dt*2));
+      if(dt>.027)slowFrames++;else slowFrames=Math.max(0,slowFrames-1);if(slowFrames>90&&pixelRatio>1){pixelRatio=Math.max(1,pixelRatio-.25);renderer.setPixelRatio(pixelRatio);resize();slowFrames=0;}renderer.render(scene,camera);frame=requestAnimationFrame(render);};frame=requestAnimationFrame(render);
+    return()=>{cancelAnimationFrame(frame);observer.disconnect();geometry.dispose();material.dispose();renderer.dispose();};},[getAudioData]);
+  return{canvasRef,canvasProps:{onPointerDown:down,onPointerMove:move,onPointerUp:up,onPointerCancel:up},setComposition,beginEmergence};
 }
