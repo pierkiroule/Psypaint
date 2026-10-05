@@ -1,46 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Brand } from "./components/Brand";
-import { Icon } from "./components/Icon";
-import { Immersive360 } from "./components/Immersive360";
-import { ArchetypePalette } from "./components/ArchetypePalette";
-import { StampControls } from "./components/StampControls";
-import { TooltipButton } from "./components/TooltipButton";
+import { useCallback, useEffect, useState } from "react";
+import { brushes } from "./data/brushes";
 import { useAudioEngine } from "./hooks/useAudioEngine";
-import { usePaintCanvas } from "./hooks/usePaintCanvas";
+import { useThreeVisualizer } from "./hooks/useThreeVisualizer";
 
 export default function App() {
-  const immersiveCanvas = useRef(null), graph = useRef({ nodes: [], edges: [] });
-  const [archetype, setArchetype] = useState("wave"), [size, setSize] = useState(46), [opacity, setOpacity] = useState(.82), [toast, setToast] = useState(""), [immersive, setImmersive] = useState(false), [entering, setEntering] = useState(false), [selected, setSelected] = useState(null);
-  const notify = useCallback(message => setToast(message), []), audio = useAudioEngine(notify);
-  const handleSelect = useCallback(node => { setSelected(node ? { ...node } : null); if (node) { setArchetype(node.archetype); setSize(node.size); setOpacity(node.opacity); } }, []);
-  const paint = usePaintCanvas({ archetype, palette: "jardin", size, opacity, audioReactive: true, getEnergy: audio.getEnergy, onSelect: handleSelect });
-  graph.current = paint.getGraph();
-  useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(""), 2200); return () => clearTimeout(timer); }, [toast]);
-  useEffect(() => { const key = event => { if (event.key === "Escape") setImmersive(false); if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); paint.undo(); } if ((event.key === "Delete" || event.key === "Backspace") && selected && !immersive) paint.deleteSelected(); }; addEventListener("keydown", key); return () => removeEventListener("keydown", key); }, [immersive, paint.deleteSelected, paint.undo, selected]);
-  const changeSize = value => { setSize(value); if (selected) { paint.updateSelected({ size: value }); setSelected(current => ({ ...current, size: value })); } };
-  const changeOpacity = value => { setOpacity(value); if (selected) { paint.updateSelected({ opacity: value }); setSelected(current => ({ ...current, opacity: value })); } };
-  const chooseArchetype = value => { setArchetype(value); paint.clearSelection(); };
-  const enter = () => { graph.current = paint.getImmersiveGraph(); setEntering(true); setTimeout(() => { setImmersive(true); setEntering(false); }, 620); };
-  return <main className={`app${immersive ? " is-immersive" : ""}${entering ? " is-entering" : ""}`}>
-    <div className="ambient ambient-one"/><div className="ambient ambient-two"/><Brand/>
-    <section className="composition" aria-label="Composition projective">
-      <div className="composition-orbit">
-        <ArchetypePalette value={archetype} onChange={chooseArchetype}/>
-        <div className="circle-shell"><canvas ref={paint.canvasRef} {...paint.canvasProps} aria-label="Carte relationnelle d’emojis"/></div>
-      </div>
-      <StampControls size={size} opacity={opacity} onSize={changeSize} onOpacity={changeOpacity}/>
-      <div className="composition-actions">
-        <TooltipButton icon="undo" label="Annuler le dernier tampon" onClick={() => { paint.undo(); notify("Dernier tampon annulé"); }} disabled={!paint.count}/>
-        <TooltipButton icon="close" label="Supprimer le tampon sélectionné" onClick={() => { paint.deleteSelected(); notify("Tampon supprimé"); }} disabled={!selected}/>
-        <TooltipButton icon="trash" label="Effacer la composition" onClick={() => { paint.clear(); notify("Composition effacée"); }} disabled={!paint.count}/>
-        <TooltipButton icon="camera" label="Télécharger la composition" onClick={() => { paint.download(); notify("Composition téléchargée"); }}/>
-        <label className="audio-action" title="Importer une musique"><Icon name="music"/><input type="file" accept="audio/*,.mp3" onChange={event => { audio.loadFile(event.target.files?.[0]); event.target.value = ""; }}/></label>
-        {audio.fileName && <TooltipButton icon={audio.playing ? "pause" : "play"} label={audio.playing ? "Pause" : "Lecture"} active={audio.playing} onClick={audio.toggle}/>}
-        <button className="enter-button" onClick={enter} disabled={!paint.count || entering}><span>ENTRER</span><Icon name="expand"/></button>
-      </div>
+  const [archetype, setArchetype] = useState("wave"), [toast, setToast] = useState("");
+  const notify = useCallback(message => setToast(message), []), audio = useAudioEngine(notify), visualizer = useThreeVisualizer(audio.getAudioData);
+  useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(""), 2000); return () => clearTimeout(timer); }, [toast]);
+  const choose = (type, index) => { setArchetype(type); visualizer.setArchetype(index); navigator.vibrate?.(10); };
+  const archetypes = [["wave", brushes.wave], ["seed", brushes.seed], ["vortex", brushes.vortex]];
+  return <main className="echo-app">
+    <header className="echo-header"><div className="wordmark"><i/><span><strong>ECHO</strong><small>AUDIOVISUALIZER</small></span></div><p>CHOISISSEZ UN ARCHÉTYPE · TOUCHEZ L’ESPACE</p></header>
+    <section className="visualizer-stage" aria-label="Scène audiovisuelle interactive">
+      <canvas ref={visualizer.canvasRef} {...visualizer.canvasProps} aria-label="Touchez pour faire émerger un effet tridimensionnel"/>
+      <div className="stage-invitation"><b>TOUCHEZ · GLISSEZ · MAINTENEZ</b><span>la matière répond à votre présence</span></div>
+      <div className="stage-status"><i className={audio.playing ? "is-live" : ""}/>{audio.playing ? "RÉSONANCE ACTIVE" : "MOUVEMENT AUTONOME"}</div>
     </section>
-    <Immersive360 active={immersive} getGraph={paint.getImmersiveGraph} getAudioData={audio.getAudioData} canvasRef={immersiveCanvas} onExit={() => setImmersive(false)}/>
-    {immersive && <div className="immersive-ui"><p><span>DÔME 180°</span>La composition devient aquarelle vivante</p><button onClick={() => setImmersive(false)} aria-label="Quitter le paysage à 180 degrés"><Icon name="close"/></button></div>}
-    <div className={`toast ${toast ? "is-visible" : ""}`} role="status">{toast}</div>
+    <nav className="archetype-dock" aria-label="Archétypes visuels">
+      {archetypes.map(([type, item], index) => <button key={type} className={archetype === type ? "is-active" : ""} onClick={() => choose(type, index)} aria-label={`Effet ${item.behavior}`} aria-pressed={archetype === type}><span>{item.emoji}</span><i/></button>)}
+    </nav>
+    <footer className="echo-controls">
+      <label className={audio.playing ? "is-active" : ""} aria-label="Charger une musique">♪<input type="file" accept="audio/*" onChange={event => { audio.loadFile(event.target.files?.[0]); event.target.value = ""; }}/></label>
+      {audio.fileName && <button className={audio.playing ? "is-active" : ""} onClick={audio.toggle} aria-label={audio.playing ? "Pause" : "Lecture"}>{audio.playing ? "Ⅱ" : "▷"}</button>}
+    </footer>
+    <div className={`echo-toast ${toast ? "is-visible" : ""}`} role="status">{toast}</div>
   </main>;
 }
