@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { archetypes, symbolOrder } from "../data/archetypes.js";
-import { mixArchetypes } from "./archetypeMixer.js";
+import { mixArchetypes, mixTrait } from "./archetypeMixer.js";
 import { advanceAudioMotion, initialAudioMotion } from "./audioMotion.js";
 import { mapOrientationToView } from "./gyroView.js";
 
@@ -39,6 +39,15 @@ test("the mixer creates one distinct hybrid state without averaging pigments", (
   assert.ok(waveVortex.orbitality > waveGrowth.orbitality);
   assert.notDeepEqual(all.palette, waveGrowth.palette);
   assert.deepEqual(waveGrowth.palette[0], archetypes.wave.palette[0].match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255));
+});
+
+test("dominant genome traits survive a three-symbol blend", () => {
+  const mixed = mixArchetypes(["wave", "growth", "vortex"], .42);
+  assert.ok(mixed.fluidity > .75);
+  assert.ok(mixed.branching > .75);
+  assert.ok(mixed.orbitality > .75);
+  assert.equal(mixed.seed, .42);
+  assert.ok(mixTrait([1, .1, .1]) > .75);
 });
 
 test("audio motion turns abrupt FFT changes into continuous evolution", () => {
