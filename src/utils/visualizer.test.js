@@ -86,8 +86,17 @@ test("audio motion turns abrupt FFT changes into continuous evolution", () => {
   const first = advanceAudioMotion(silent, { low: 1, mid: 1, high: 1, energy: 1, transient: 1 }, 1 / 60);
   assert.ok(first.low > 0 && first.low < .1);
   assert.ok(first.shimmer > 0 && first.shimmer < .1);
+  assert.ok(first.pulse > 0 && first.pulse < .2);
+  assert.ok(first.projection > 0 && first.projection < .1);
   assert.ok(first.flow > silent.flow);
   const release = advanceAudioMotion(first, { low: 0, mid: 0, high: 0, energy: 0, transient: 0 }, 1 / 60);
   assert.ok(release.low < first.low && release.low > 0);
   assert.ok(release.propagation < first.propagation);
+  assert.ok(release.pulse < first.pulse);
+});
+
+test("the shader exposes audio-projected parallelepiped forms", () => {
+  assert.match(FRAGMENT, /float boxSdf\(/);
+  assert.match(FRAGMENT, /float projectiveForm\(/);
+  assert.match(FRAGMENT, /uPulse,uProjection/);
 });
