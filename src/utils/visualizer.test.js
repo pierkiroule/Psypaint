@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { brushes } from "../data/brushes.js";
+import { archetypes, symbolOrder } from "../data/archetypes.js";
+import { mixArchetypes } from "./archetypeMixer.js";
 import { advanceAudioMotion, initialAudioMotion } from "./audioMotion.js";
 import { mapOrientationToView } from "./gyroView.js";
 
-test("the particle palette exposes eight behavioral brushes", () => {
-  const palette = ["wave", "seed", "vortex", "fire", "cloud", "sparkle", "moon", "bubble"].map(type => brushes[type]);
-  assert.deepEqual(palette.map(item => item.emoji), ["🌊", "🌱", "🌀", "🔥", "☁️", "✨", "🌙", "🫧"]);
-  assert.equal(new Set(palette.map(item => item.behavior)).size, 8);
+test("the projective palette exposes twelve configurable symbols", () => {
+  assert.equal(symbolOrder.length, 12);
+  assert.deepEqual(symbolOrder.slice(0, 3).map(key => archetypes[key].emoji), ["🌊", "🌱", "🔥"]);
+  assert.ok(symbolOrder.every(key => archetypes[key].palette.length === 4));
 });
 
 test("gyro view is relative, upright and wraps compass angles", () => {
@@ -23,9 +24,21 @@ test("gyro view is relative, upright and wraps compass angles", () => {
 });
 
 test("pilot archetypes keep distinct audio signatures", () => {
-  assert.ok(brushes.wave.audioResponse.low > brushes.wave.audioResponse.high);
-  assert.ok(brushes.seed.audioResponse.mid > brushes.seed.audioResponse.low);
-  assert.ok(brushes.vortex.audioResponse.mid > brushes.vortex.audioResponse.low);
+  assert.ok(archetypes.wave.audioResponse.low > archetypes.wave.audioResponse.high);
+  assert.ok(archetypes.growth.audioResponse.mid > archetypes.growth.audioResponse.low);
+  assert.ok(archetypes.vortex.audioResponse.mid > archetypes.vortex.audioResponse.low);
+});
+
+test("the mixer creates one distinct hybrid state without averaging pigments", () => {
+  const waveGrowth = mixArchetypes(["wave", "growth"]);
+  const waveVortex = mixArchetypes(["wave", "vortex"]);
+  const all = mixArchetypes(["wave", "growth", "vortex"]);
+  assert.equal(waveGrowth.count, 2);
+  assert.equal(all.count, 3);
+  assert.ok(waveGrowth.branching > waveVortex.branching);
+  assert.ok(waveVortex.orbitality > waveGrowth.orbitality);
+  assert.notDeepEqual(all.palette, waveGrowth.palette);
+  assert.deepEqual(waveGrowth.palette[0], archetypes.wave.palette[0].match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255));
 });
 
 test("audio motion turns abrupt FFT changes into continuous evolution", () => {
