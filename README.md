@@ -1,16 +1,15 @@
-# PsyPaint
+# EchoPaint
 
-PsyPaint est un atelier de peinture générative qui associe le geste, la matière et le son. Cette version refactorise le prototype historique `psypaint360.html` en une application React moderne propulsée par Vite.
+EchoPaint est un instrument de peinture audiovisuelle mobile : une feuille liquide où le geste crée des squiggles persistants et où le son module leur respiration.
 
 ## Fonctionnalités
 
-- cinq outils de dessin texturés : aquarelle, encre sensible à la pression, crayon graphite et deux tampons ;
-- quatre palettes avec texture de papier dynamique ;
-- choix libre de la couleur, de l’épaisseur et de l’opacité ;
-- import d’un morceau audio pour animer les brosses en temps réel, sans générateur sonore ;
-- annulation, remise à zéro et export PNG ;
-- rendu cohérent des outils dans la toile 2D et la vue 3D à 360°, avec un manche virtuel, accélération, inertie et virages amortis ;
-- mode immersif, contrôles clavier et interface responsive.
+- huit brosses comportementales pilotées par une palette d’emojis (jamais dessinés dans l’œuvre) ;
+- matière aquarelle multicouche, particules et croissance organique persistante ;
+- résonance locale entre les traces Wave et Seed ;
+- analyse audio lissée avec une réponse propre à chaque brosse ;
+- Pointer Events, multi-touch, annulation et remise à zéro ;
+- canvas 2D rectangulaire responsive, optimisé pour les écrans mobiles.
 
 ## Développement
 
