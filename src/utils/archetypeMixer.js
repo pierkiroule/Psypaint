@@ -13,7 +13,7 @@ export function mixTrait(values) {
 export function mixArchetypes(keys, seed = 0) {
   const sources = keys.map(key => archetypes[key]).filter(Boolean);
   if (!sources.length) return null;
-  const mixed = { count: sources.length, seed };
+  const mixed = { count: sources.length, seed, symbols: [...keys] };
   GENOME_KEYS.forEach(name => { mixed[name] = mixTrait(sources.map(item => item[name])); });
   mixed.audioResponse = Object.fromEntries(["low", "mid", "high"].map(band => [band, mixTrait(sources.map(item => item.audioResponse[band]))]));
   mixed.palette = Array.from({ length: 4 }, (_, index) => {
