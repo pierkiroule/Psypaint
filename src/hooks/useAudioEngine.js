@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export function useAudioEngine(onMessage) {
   const engine = useRef(null);
   const objectUrl = useRef("");
-  const analysis = useRef({ low: 0, mid: 0, high: 0, energy: 0, beat: 0, previousEnergy: 0, updatedAt: performance.now() });
+  const analysis = useRef({ low: 0, mid: 0, high: 0, energy: 0, transient: 0, previousEnergy: 0, updatedAt: performance.now() });
   const [playing, setPlaying] = useState(false);
   const [fileName, setFileName] = useState("");
 
@@ -63,8 +63,8 @@ export function useAudioEngine(onMessage) {
       energy /= length;
     }
     const damping = 1 - Math.exp(-delta * 7); smooth.low += (low - smooth.low) * damping; smooth.mid += (mid - smooth.mid) * damping; smooth.high += (high - smooth.high) * damping; smooth.energy += (energy - smooth.energy) * damping;
-    const transient = Math.max(0, energy - smooth.previousEnergy - .035); smooth.beat = Math.max(transient * 5, smooth.beat * Math.exp(-delta * 8)); smooth.previousEnergy = energy;
-    return { low: smooth.low, mid: smooth.mid, high: smooth.high, energy: smooth.energy, beat: smooth.beat };
+    const transient = Math.max(0, energy - smooth.previousEnergy - .035); smooth.transient = Math.max(transient * 5, smooth.transient * Math.exp(-delta * 8)); smooth.previousEnergy = energy;
+    return { low: smooth.low, mid: smooth.mid, high: smooth.high, energy: smooth.energy, transient: smooth.transient };
   }, []);
 
   const getEnergy = useCallback(() => getAudioData().energy, [getAudioData]);
