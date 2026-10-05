@@ -6,6 +6,8 @@ import { advanceAudioMotion, initialAudioMotion } from "./audioMotion.js";
 import { advanceOrientationView, mapOrientationToView } from "./gyroView.js";
 import { flattenPalette, FRAGMENT } from "../hooks/useThreeVisualizer.js";
 import { getUniformLocation } from "../vendor/three.module.js";
+import { createAsteroidPlan, DREAM_PHOTO_FRAGMENT, DREAM_PHOTO_VERTEX, getDreamPhotoQuality } from "../visuals/DreamPhotoLayer.js";
+import { semanticKeywords, WikimediaImageProvider } from "../services/ImageProvider.js";
 
 test("the projective palette exposes twelve configurable symbols", () => {
   assert.equal(symbolOrder.length, 12);
@@ -29,10 +31,18 @@ test("gyro heading stays continuous through north and a complete turn", () => {
   let state = advanceOrientationView(null, { alpha: 359, beta: 80, gamma: 4 });
   state = advanceOrientationView(state, { alpha: 1, beta: 80, gamma: 4 });
   assert.equal(state.heading, 2);
-  assert.ok(Math.abs(state.x - 2 * Math.PI / 180) < 1e-10);
+  assert.ok(Math.abs(state.x + 2 * Math.PI / 180) < 1e-10);
   for (const alpha of [91, 181, 271, 359]) state = advanceOrientationView(state, { alpha, beta: 80, gamma: 4 });
   assert.equal(state.heading, 360);
   assert.ok(Math.abs(Math.sin(state.x)) < 1e-10);
+});
+
+test("continuous gyro calibration moves the world opposite the camera", () => {
+  let state = advanceOrientationView(null, { alpha: 20, beta: 80, gamma: 0 });
+  state = advanceOrientationView(state, { alpha: 35, beta: 80, gamma: 0 });
+  assert.ok(state.x < 0);
+  state = advanceOrientationView(state, { alpha: 5, beta: 80, gamma: 0 });
+  assert.ok(state.x > 0);
 });
 
 test("pilot archetypes keep distinct audio signatures", () => {
@@ -99,4 +109,48 @@ test("the shader exposes audio-projected parallelepiped forms", () => {
   assert.match(FRAGMENT, /float boxSdf\(/);
   assert.match(FRAGMENT, /float projectiveForm\(/);
   assert.match(FRAGMENT, /uPulse,uProjection/);
+});
+
+test("dream photo asteroids are deterministic three-dimensional plans", () => {
+  const composition = mixArchetypes(["wave", "growth", "vortex"], .42);
+  const first = createAsteroidPlan(composition, 8);
+  assert.deepEqual(first, createAsteroidPlan(composition, 8));
+  assert.equal(first.length, 8);
+  assert.ok(first.every(item => item.z < -1 && item.tilt !== 0 && item.speed > 0));
+  assert.notDeepEqual(first, createAsteroidPlan({ ...composition, seed: .43 }, 8));
+});
+
+test("dream photo quality respects low, medium and high budgets", () => {
+  assert.deepEqual(getDreamPhotoQuality(390, 2, 8), { name: "LOW", count: 6, textureSize: 256 });
+  assert.deepEqual(getDreamPhotoQuality(760, 1, 8), { name: "MEDIUM", count: 8, textureSize: 256 });
+  assert.deepEqual(getDreamPhotoQuality(1440, 1, 8), { name: "HIGH", count: 12, textureSize: 256 });
+  assert.equal(getDreamPhotoQuality(1440, 1, 4).count, 6);
+});
+
+test("photographic planes use world-space gyro rotation and projected depth", () => {
+  assert.match(DREAM_PHOTO_VERTEX, /p\.xz=rot\(uView\.x\)\*p\.xz/);
+  assert.match(DREAM_PHOTO_VERTEX, /p\.yz=rot\(uView\.y\)\*p\.yz/);
+  assert.match(DREAM_PHOTO_VERTEX, /depth/);
+  assert.match(DREAM_PHOTO_VERTEX, /visible=step\(p\.z,-\.3\)/);
+  assert.doesNotMatch(DREAM_PHOTO_VERTEX, /p\.xy\+=uView/);
+});
+
+test("dream photos retain contrast and perceptual vibrance", () => {
+  assert.match(DREAM_PHOTO_FRAGMENT, /chroma/);
+  assert.match(DREAM_PHOTO_FRAGMENT, /1\.13/);
+  assert.match(DREAM_PHOTO_FRAGMENT, /smoothstep\(\.58,\.94,l\)/);
+});
+
+test("emoji symbols expand into resonant rather than literal searches", () => {
+  const terms = semanticKeywords(["wave", "moon", "bubble"], .2);
+  assert.equal(terms.length, 3);
+  assert.ok(terms.some(term => /reflection|mist|night|silver|iridescent|floating|refraction/.test(term)));
+  assert.ok(!terms.join(" ").includes("emoji"));
+  assert.deepEqual(mixArchetypes(["wave", "moon"], .2).symbols, ["wave", "moon"]);
+});
+
+test("image provider rejects failure without owning rendering fallback", async () => {
+  const provider = new WikimediaImageProvider(async () => ({ ok: false, status: 503 }));
+  await assert.rejects(provider.search(["mist"]), /503/);
+  provider.dispose();
 });
