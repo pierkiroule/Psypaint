@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { archetypes, symbolOrder } from "../data/archetypes.js";
-import { mixArchetypes } from "./archetypeMixer.js";
+import { mixArchetypes, mixTrait } from "./archetypeMixer.js";
 import { advanceAudioMotion, initialAudioMotion } from "./audioMotion.js";
-import { mapOrientationToView } from "./gyroView.js";
+import { advanceOrientationView, mapOrientationToView } from "./gyroView.js";
+import { flattenPalette } from "../hooks/useThreeVisualizer.js";
+import { getUniformLocation } from "../vendor/three.module.js";
 
 test("the projective palette exposes twelve configurable symbols", () => {
   assert.equal(symbolOrder.length, 12);
@@ -23,6 +25,16 @@ test("gyro view is relative, upright and wraps compass angles", () => {
   assert.ok(up.y < 0 && Math.abs(up.y) < .2);
 });
 
+test("gyro heading stays continuous through north and a complete turn", () => {
+  let state = advanceOrientationView(null, { alpha: 359, beta: 80, gamma: 4 });
+  state = advanceOrientationView(state, { alpha: 1, beta: 80, gamma: 4 });
+  assert.equal(state.heading, 2);
+  assert.ok(Math.abs(state.x - 2 * Math.PI / 180) < 1e-10);
+  for (const alpha of [91, 181, 271, 359]) state = advanceOrientationView(state, { alpha, beta: 80, gamma: 4 });
+  assert.equal(state.heading, 360);
+  assert.ok(Math.abs(Math.sin(state.x)) < 1e-10);
+});
+
 test("pilot archetypes keep distinct audio signatures", () => {
   assert.ok(archetypes.wave.audioResponse.low > archetypes.wave.audioResponse.high);
   assert.ok(archetypes.growth.audioResponse.mid > archetypes.growth.audioResponse.low);
@@ -39,6 +51,29 @@ test("the mixer creates one distinct hybrid state without averaging pigments", (
   assert.ok(waveVortex.orbitality > waveGrowth.orbitality);
   assert.notDeepEqual(all.palette, waveGrowth.palette);
   assert.deepEqual(waveGrowth.palette[0], archetypes.wave.palette[0].match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255));
+});
+
+test("dominant genome traits survive a three-symbol blend", () => {
+  const mixed = mixArchetypes(["wave", "growth", "vortex"], .42);
+  assert.ok(mixed.fluidity > .75);
+  assert.ok(mixed.branching > .75);
+  assert.ok(mixed.orbitality > .75);
+  assert.equal(mixed.seed, .42);
+  assert.ok(mixTrait([1, .1, .1]) > .75);
+});
+
+test("the GLSL palette is packed as a vec3 uniform buffer", () => {
+  const palette = flattenPalette([[1, 0, 0], [0, 1, 0], [0, 0, 1], [.5, .5, .5]]);
+  assert.ok(palette instanceof Float32Array);
+  assert.equal(palette.length, 12);
+  assert.deepEqual([...palette.slice(0, 6)], [1, 0, 0, 0, 1, 0]);
+});
+
+test("array uniforms fall back to the WebGL first-element location", () => {
+  const requested = [];
+  const gl = { getUniformLocation: (_program, name) => { requested.push(name); return name.endsWith("[0]") ? 7 : null; } };
+  assert.equal(getUniformLocation(gl, {}, "uPalette", { type: "3fv" }), 7);
+  assert.deepEqual(requested, ["uPalette", "uPalette[0]"]);
 });
 
 test("audio motion turns abrupt FFT changes into continuous evolution", () => {

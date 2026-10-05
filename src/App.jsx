@@ -9,10 +9,11 @@ export default function App() {
   const [phase, setPhase] = useState("choose");
   const [toast, setToast] = useState("");
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [seed, setSeed] = useState(() => Math.random());
   const notify = useCallback(message => setToast(message), []);
   const audio = useAudioEngine(notify);
   const visualizer = useThreeVisualizer(audio.getAudioData);
-  const composition = useMemo(() => mixArchetypes(selection), [selection]);
+  const composition = useMemo(() => mixArchetypes(selection, seed), [selection, seed]);
 
   useEffect(() => visualizer.setComposition(composition), [composition, visualizer.setComposition]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(""), 2200); return () => clearTimeout(timer); }, [toast]);
@@ -28,6 +29,8 @@ export default function App() {
   };
   const resonate = () => {
     if (!selection.length) return;
+    setSeed(Math.random());
+    visualizer.beginEmergence();
     setPhase("dissolve");
     setTimeout(() => setPhase("experience"), 1500);
   };
