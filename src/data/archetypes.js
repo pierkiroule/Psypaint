@@ -1,20 +1,30 @@
 /**
- * Symbols are deliberately described through visual behaviour only. Their
- * meaning is never exposed to (or inferred for) the person using PsyKaleido.
+ * Central symbolic genome. Symbols describe behaviour, never illustrations.
+ * New genome traits can be added here and to GENOME_KEYS without changing UI.
  */
+export const GENOME_KEYS = [
+  "fluidity", "branching", "orbitality", "turbulence", "diffusion",
+  "membrane", "sparkle", "verticality", "symmetry", "softness",
+  "density", "luminosity", "depth"
+];
+
+const profile = (emoji, palette, traits, audioResponse) => ({
+  emoji, palette, audioResponse, ...Object.fromEntries(GENOME_KEYS.map(key => [key, traits[key] ?? .12]))
+});
+
 export const archetypes = {
-  wave: { emoji: "🌊", palette: ["#123b55", "#2a8495", "#8bd5c8", "#d7ead8"], fluidity: 1, branching: .12, orbitality: .28, symmetry: .48, turbulence: .36, particles: .58, audioResponse: { low: .85, mid: .55, high: .18 } },
-  growth: { emoji: "🌱", palette: ["#173a32", "#48785a", "#a1b86b", "#e1c982"], fluidity: .42, branching: 1, orbitality: .18, symmetry: .55, turbulence: .28, particles: .5, audioResponse: { low: .35, mid: .72, high: .24 } },
-  fire: { emoji: "🔥", palette: ["#4c2530", "#a44d38", "#dd8a55", "#f2c886"], fluidity: .62, branching: .35, orbitality: .24, symmetry: .4, turbulence: .72, particles: .65, audioResponse: { low: .45, mid: .8, high: .5 } },
-  stone: { emoji: "🪨", palette: ["#252d32", "#566866", "#9b9c82", "#d0c7aa"], fluidity: .16, branching: .3, orbitality: .12, symmetry: .67, turbulence: .16, particles: .25, audioResponse: { low: .72, mid: .26, high: .1 } },
-  moon: { emoji: "🌙", palette: ["#171b3b", "#414873", "#8e91b0", "#ddd8c6"], fluidity: .52, branching: .12, orbitality: .7, symmetry: .58, turbulence: .2, particles: .34, audioResponse: { low: .68, mid: .3, high: .16 } },
-  sun: { emoji: "☀️", palette: ["#4a3028", "#a86d48", "#e0b96f", "#f4e5b0"], fluidity: .36, branching: .5, orbitality: .54, symmetry: .76, turbulence: .3, particles: .62, audioResponse: { low: .52, mid: .48, high: .4 } },
-  tree: { emoji: "🌳", palette: ["#18342f", "#416853", "#758e62", "#bdad78"], fluidity: .3, branching: .9, orbitality: .12, symmetry: .46, turbulence: .24, particles: .45, audioResponse: { low: .5, mid: .6, high: .2 } },
-  bubble: { emoji: "🫧", palette: ["#203d4a", "#56a2a3", "#b69ab5", "#dfd2cc"], fluidity: .82, branching: .08, orbitality: .48, symmetry: .64, turbulence: .2, particles: .78, audioResponse: { low: .3, mid: .48, high: .6 } },
-  vortex: { emoji: "🌀", palette: ["#202b58", "#554f91", "#468fa2", "#9ac8bc"], fluidity: .58, branching: .14, orbitality: 1, symmetry: .82, turbulence: .54, particles: .5, audioResponse: { low: .52, mid: .76, high: .36 } },
-  sparkle: { emoji: "✨", palette: ["#34304f", "#786b87", "#c3a86f", "#eee3bd"], fluidity: .28, branching: .25, orbitality: .45, symmetry: .7, turbulence: .18, particles: 1, audioResponse: { low: .15, mid: .35, high: .9 } },
-  feather: { emoji: "🪶", palette: ["#273b45", "#697f80", "#b49c8c", "#e1d3bc"], fluidity: .72, branching: .64, orbitality: .18, symmetry: .38, turbulence: .14, particles: .42, audioResponse: { low: .22, mid: .52, high: .34 } },
-  drop: { emoji: "💧", palette: ["#15364c", "#356f88", "#72aeb5", "#d2e0d5"], fluidity: .94, branching: .06, orbitality: .35, symmetry: .6, turbulence: .25, particles: .48, audioResponse: { low: .7, mid: .5, high: .2 } }
+  wave: profile("🌊", ["#102d42", "#226b79", "#6db9ae", "#d5e6d2"], { fluidity: 1, turbulence: .36, softness: .82, depth: .74, diffusion: .42, membrane: .48 }, { low: .82, mid: .62, high: .2 }),
+  growth: profile("🌱", ["#15332c", "#3d7153", "#91ad68", "#ddc77d"], { branching: 1, verticality: .5, softness: .56, density: .52, fluidity: .34, depth: .5 }, { low: .34, mid: .78, high: .25 }),
+  fire: profile("🔥", ["#3c202b", "#934635", "#d47d4d", "#efd09a"], { turbulence: .92, verticality: 1, luminosity: .72, fluidity: .54, branching: .36, density: .48 }, { low: .42, mid: .82, high: .52 }),
+  stone: profile("🪨", ["#222b30", "#536461", "#92977f", "#cdc5aa"], { density: .9, depth: .7, symmetry: .58, membrane: .6, softness: .22, turbulence: .16 }, { low: .75, mid: .28, high: .1 }),
+  moon: profile("🌙", ["#151936", "#3c456d", "#858baa", "#d8d5c8"], { softness: .92, luminosity: .28, depth: .84, diffusion: .58, orbitality: .64, fluidity: .48 }, { low: .68, mid: .32, high: .16 }),
+  sun: profile("☀️", ["#422b26", "#9b6544", "#d5ac66", "#f1e2aa"], { luminosity: 1, symmetry: .8, sparkle: .56, branching: .48, diffusion: .34, density: .52 }, { low: .5, mid: .5, high: .42 }),
+  tree: profile("🌳", ["#15312b", "#3a624d", "#71885d", "#b9aa75"], { branching: .92, verticality: .72, density: .67, softness: .4, depth: .58, symmetry: .42 }, { low: .52, mid: .68, high: .2 }),
+  bubble: profile("🫧", ["#1b3946", "#4b969a", "#ad91ae", "#ded3d0"], { membrane: 1, softness: 1, diffusion: .54, fluidity: .78, sparkle: .55, depth: .66 }, { low: .28, mid: .5, high: .65 }),
+  vortex: profile("🌀", ["#1b2751", "#504b8a", "#408799", "#94c1b5"], { orbitality: 1, symmetry: .68, depth: .92, turbulence: .42, fluidity: .62, membrane: .4 }, { low: .5, mid: .8, high: .36 }),
+  sparkle: profile("✨", ["#2f2c49", "#71657f", "#bba26c", "#ede2bd"], { sparkle: 1, luminosity: .84, density: .27, diffusion: .38, symmetry: .58, depth: .62 }, { low: .14, mid: .34, high: .92 }),
+  feather: profile("🪶", ["#233740", "#637878", "#aa9486", "#ddd0ba"], { softness: .88, branching: .65, fluidity: .7, verticality: .42, diffusion: .46, density: .3 }, { low: .22, mid: .56, high: .36 }),
+  drop: profile("💧", ["#123247", "#306a82", "#69a6ae", "#cfdfd5"], { fluidity: .96, membrane: .72, softness: .78, depth: .7, diffusion: .38, orbitality: .28 }, { low: .7, mid: .54, high: .22 })
 };
 
 export const symbolOrder = ["wave", "growth", "fire", "stone", "moon", "sun", "tree", "bubble", "vortex", "sparkle", "feather", "drop"];
