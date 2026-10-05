@@ -6,6 +6,7 @@ import { advanceAudioMotion, initialAudioMotion } from "./audioMotion.js";
 import { advanceOrientationView, mapOrientationToView } from "./gyroView.js";
 import { flattenPalette, FRAGMENT } from "../hooks/useThreeVisualizer.js";
 import { getUniformLocation } from "../vendor/three.module.js";
+import { createFragmentPlan, getPareidoliaQuality } from "../visuals/PareidoliaLayer.js";
 
 test("the projective palette exposes twelve configurable symbols", () => {
   assert.equal(symbolOrder.length, 12);
@@ -99,4 +100,19 @@ test("the shader exposes audio-projected parallelepiped forms", () => {
   assert.match(FRAGMENT, /float boxSdf\(/);
   assert.match(FRAGMENT, /float projectiveForm\(/);
   assert.match(FRAGMENT, /uPulse,uProjection/);
+});
+
+test("pareidolia fragments are deterministic abstract depth plans", () => {
+  const composition = mixArchetypes(["wave", "growth", "vortex"], .42);
+  const first = createFragmentPlan(composition, 8);
+  assert.deepEqual(first, createFragmentPlan(composition, 8));
+  assert.equal(first.length, 8);
+  assert.ok(first.every(item => item.z < -1 && item.voids >= 1 && item.lobes >= 2));
+  assert.notDeepEqual(first, createFragmentPlan({ ...composition, seed: .43 }, 8));
+});
+
+test("pareidolia quality respects the mobile fragment budget", () => {
+  assert.deepEqual(getPareidoliaQuality(390, 2, 8), { name: "LOW", count: 8, textureSize: 256 });
+  assert.deepEqual(getPareidoliaQuality(1440, 1, 8), { name: "HIGH", count: 14, textureSize: 256 });
+  assert.equal(getPareidoliaQuality(1440, 1, 4).count, 8);
 });

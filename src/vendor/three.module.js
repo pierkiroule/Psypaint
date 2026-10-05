@@ -24,10 +24,10 @@ export class WebGLRenderer {
   compile(material) {
     const gl = this.gl, shader = (type, source) => { const result = gl.createShader(type); gl.shaderSource(result, source); gl.compileShader(result); if (!gl.getShaderParameter(result, gl.COMPILE_STATUS)) { const message = gl.getShaderInfoLog(result) || "Unknown GLSL compilation error"; console.error("PsyKaleido shader compilation failed:", message); throw new Error(message); } return result; };
     const program = gl.createProgram(); gl.attachShader(program, shader(gl.VERTEX_SHADER, material.vertexShader)); gl.attachShader(program, shader(gl.FRAGMENT_SHADER, material.fragmentShader)); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
-    this.program = program; this.material = material; const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW); const position = gl.getAttribLocation(program, "position"); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+    this.program = program; this.material = material; this.buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW); this.position = gl.getAttribLocation(program, "position");
   }
   render(scene) {
-    const material = scene.children[0]?.material, gl = this.gl; if (!gl || !material) return; if (!this.program) this.compile(material); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); gl.useProgram(this.program);
+    const material = scene.children[0]?.material, gl = this.gl; if (!gl || !material) return; if (!this.program) this.compile(material); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); gl.useProgram(this.program); gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer); gl.enableVertexAttribArray(this.position); gl.vertexAttribPointer(this.position, 2, gl.FLOAT, false, 0, 0);
     for (const [name, entry] of Object.entries(material.uniforms)) {
       const location = getUniformLocation(gl, this.program, name, entry), value = entry.value;
       if (location === null) continue;
@@ -41,5 +41,5 @@ export class WebGLRenderer {
     }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
-  dispose() { if (this.program) this.gl.deleteProgram(this.program); }
+  dispose() { if (this.buffer) this.gl.deleteBuffer(this.buffer); if (this.program) this.gl.deleteProgram(this.program); }
 }
