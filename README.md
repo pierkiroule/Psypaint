@@ -1,16 +1,15 @@
-# PsyPaint
+# Echo — Audiovisualizer
 
-PsyPaint est un atelier de peinture générative qui associe le geste, la matière et le son. Cette version refactorise le prototype historique `psypaint360.html` en une application React moderne propulsée par Vite.
+Echo est un audiovisualizer mobile : choisissez un archétype emoji, touchez la scène et faites émerger une présence tridimensionnelle qui vit seule puis réagit à la musique.
 
 ## Fonctionnalités
 
-- cinq outils de dessin texturés : aquarelle, encre sensible à la pression, crayon graphite et deux tampons ;
-- quatre palettes avec texture de papier dynamique ;
-- choix libre de la couleur, de l’épaisseur et de l’opacité ;
-- import d’un morceau audio pour animer les brosses en temps réel, sans générateur sonore ;
-- annulation, remise à zéro et export PNG ;
-- rendu cohérent des outils dans la toile 2D et la vue 3D à 360°, avec un manche virtuel, accélération, inertie et virages amortis ;
-- mode immersif, contrôles clavier et interface responsive.
+- huit archétypes visuels distincts : vague, feu, croissance, vortex, nuage, constellation, halo lunaire et membranes ;
+- scène WebGL pilotée par shaders, effets superposables et profondeur lumineuse ;
+- émergence de l’effet exactement au point touché ;
+- analyse audio lissée par graves, médiums, aigus, énergie et transitoires ;
+- animation autonome même sans musique, annulation et remise à zéro ;
+- rendu responsive avec densité de pixels plafonnée pour les mobiles.
 
 ## Développement
 
