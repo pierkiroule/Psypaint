@@ -19,10 +19,13 @@ export function advanceOrientationView(state, sample, screenAngle = 0) {
   const tiltY = clamp(((sample.beta ?? next.beta) - next.beta) / 90, -.55, .55);
   const yaw = heading * Math.PI / 180;
   const angle = screenAngle * Math.PI / 180;
-  const horizontal = tiltX;
+  const horizontal = tiltX * Math.cos(angle) - tiltY * Math.sin(angle);
+  const vertical = tiltX * Math.sin(angle) + tiltY * Math.cos(angle);
   return {
-    x: yaw + (horizontal * Math.cos(angle) - tiltY * Math.sin(angle)) * .22,
-    y: clamp((horizontal * Math.sin(angle) + tiltY * Math.cos(angle)) * .65, -.55, .55),
+    // Device headings increase clockwise; the viewed world must travel in the
+    // opposite direction, like a physical camera panning through a scene.
+    x: -yaw - horizontal * .22,
+    y: clamp(vertical * .65, -.55, .55),
     yaw, previousAlpha: alpha, heading, beta: next.beta, gamma: next.gamma
   };
 }
